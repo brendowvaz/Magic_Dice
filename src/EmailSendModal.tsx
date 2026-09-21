@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { isValidEmail, isValidImageUrl, sendImageEmail } from './brevo';
-import { loadMailSettings, PLACEHOLDER_IMAGE_URL, saveMailSettings, type MailSettings } from './mailSettings';
+import { isPlaceholderImageUrl, loadMailSettings, s3ImageUrl, saveMailSettings, type MailSettings } from './mailSettings';
 
 type Feedback = { kind: 'error' | 'success'; text: string } | null;
 
@@ -12,6 +12,10 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
   const [senderEmail, setSenderEmail] = useState('');
   const [imageUrl, setImageUrl] = useState('');
   const [apiKeyInput, setApiKeyInput] = useState('');
+  const [s3Bucket, setS3Bucket] = useState('');
+  const [s3Region, setS3Region] = useState('');
+  const [awsAccessKeyIdInput, setAwsAccessKeyIdInput] = useState('');
+  const [awsSecretAccessKeyInput, setAwsSecretAccessKeyInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [feedback, setFeedback] = useState<Feedback>(null);
@@ -29,6 +33,10 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
         setSenderEmail(saved.senderEmail);
         setImageUrl(saved.imageUrl);
         setApiKeyInput('');
+        setS3Bucket(saved.s3Bucket);
+        setS3Region(saved.s3Region);
+        setAwsAccessKeyIdInput('');
+        setAwsSecretAccessKeyInput('');
       })
       .catch(() => {
         if (active) setFeedback({ kind: 'error', text: 'Não foi possível ler as configurações de envio.' });
@@ -46,15 +54,28 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
     setSenderEmail(settings?.senderEmail ?? '');
     setImageUrl(settings?.imageUrl ?? '');
     setApiKeyInput('');
+    setS3Bucket(settings?.s3Bucket ?? '');
+    setS3Region(settings?.s3Region ?? '');
+    setAwsAccessKeyIdInput('');
+    setAwsSecretAccessKeyInput('');
     setPage('settings');
     setFeedback(message ? { kind: 'error', text: message } : null);
   }
 
   async function saveSettings() {
+    const bucket = s3Bucket.trim();
+    const region = s3Region.trim().toLowerCase();
+    const configuredImageUrl = imageUrl.trim();
     const next: MailSettings = {
       senderEmail: senderEmail.trim(),
-      imageUrl: imageUrl.trim(),
+      imageUrl: isPlaceholderImageUrl(configuredImageUrl) && bucket && region
+        ? s3ImageUrl(bucket, region)
+        : configuredImageUrl,
       apiKey: apiKeyInput.trim() || settings?.apiKey || '',
+      s3Bucket: bucket,
+      s3Region: region,
+      awsAccessKeyId: awsAccessKeyIdInput.trim() || settings?.awsAccessKeyId || '',
+      awsSecretAccessKey: awsSecretAccessKeyInput.trim() || settings?.awsSecretAccessKey || '',
     };
     if (!isValidEmail(next.senderEmail)) {
       setFeedback({ kind: 'error', text: 'Digite um remetente válido e verificado na Brevo.' });
@@ -64,8 +85,17 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
       setFeedback({ kind: 'error', text: 'Digite um link HTTPS válido para a imagem.' });
       return;
     }
-    if (!next.apiKey) {
-      setFeedback({ kind: 'error', text: 'Digite sua chave da API Brevo.' });
+    const hasS3Values = Boolean(next.s3Bucket || next.s3Region || next.awsAccessKeyId || next.awsSecretAccessKey);
+    if (hasS3Values && (!next.s3Bucket || !next.s3Region || !next.awsAccessKeyId || !next.awsSecretAccessKey)) {
+      setFeedback({ kind: 'error', text: 'Preencha bucket, região e as duas chaves AWS para ativar o envio ao S3.' });
+      return;
+    }
+    if (hasS3Values && !/^[a-z]{2}(?:-gov)?-[a-z]+-\d+$/.test(next.s3Region)) {
+      setFeedback({ kind: 'error', text: 'Digite uma região AWS válida, como sa-east-1.' });
+      return;
+    }
+    if (hasS3Values && (isPlaceholderImageUrl(next.imageUrl) || !new URL(next.imageUrl).pathname.endsWith('/image'))) {
+      setFeedback({ kind: 'error', text: 'O link público precisa apontar para o objeto image, sem extensão.' });
       return;
     }
 
@@ -74,11 +104,14 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
     try {
       await saveMailSettings(next);
       setSettings(next);
+      setImageUrl(next.imageUrl);
       setApiKeyInput('');
+      setAwsAccessKeyIdInput('');
+      setAwsSecretAccessKeyInput('');
       setPage('compose');
       setFeedback({
-        kind: next.imageUrl === PLACEHOLDER_IMAGE_URL ? 'error' : 'success',
-        text: next.imageUrl === PLACEHOLDER_IMAGE_URL
+        kind: isPlaceholderImageUrl(next.imageUrl) ? 'error' : 'success',
+        text: isPlaceholderImageUrl(next.imageUrl)
           ? 'Configuração salva. Substitua o link de exemplo antes de enviar.'
           : 'Configuração salva no aparelho.',
       });
@@ -100,7 +133,7 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
       openSettings('Configure a chave Brevo antes de enviar.');
       return;
     }
-    if (settings.imageUrl === PLACEHOLDER_IMAGE_URL) {
+    if (isPlaceholderImageUrl(settings.imageUrl)) {
       openSettings('Substitua o link de exemplo por uma imagem pública da AWS.');
       return;
     }
@@ -183,6 +216,53 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
                   accessibilityLabel="Link da imagem na AWS"
                 />
                 <Text style={styles.hint}>O mesmo link será usado em todos os e-mails. Ele precisa ser público e permanente.</Text>
+                <Text style={styles.sectionTitle}>Envio direto ao S3</Text>
+                <Text style={styles.label}>Nome do bucket</Text>
+                <TextInput
+                  style={styles.input}
+                  value={s3Bucket}
+                  onChangeText={setS3Bucket}
+                  placeholder="meu-bucket"
+                  placeholderTextColor="#777777"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Nome do bucket S3"
+                />
+                <Text style={styles.label}>Região AWS</Text>
+                <TextInput
+                  style={styles.input}
+                  value={s3Region}
+                  onChangeText={setS3Region}
+                  placeholder="sa-east-1"
+                  placeholderTextColor="#777777"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="Região AWS"
+                />
+                <Text style={styles.label}>AWS Access Key ID</Text>
+                <TextInput
+                  style={styles.input}
+                  value={awsAccessKeyIdInput}
+                  onChangeText={setAwsAccessKeyIdInput}
+                  placeholder={settings?.awsAccessKeyId ? 'Chave salva; deixe em branco para manter' : 'Cole o Access Key ID'}
+                  placeholderTextColor="#777777"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  accessibilityLabel="AWS Access Key ID"
+                />
+                <Text style={styles.label}>AWS Secret Access Key</Text>
+                <TextInput
+                  style={styles.input}
+                  value={awsSecretAccessKeyInput}
+                  onChangeText={setAwsSecretAccessKeyInput}
+                  placeholder={settings?.awsSecretAccessKey ? 'Chave salva; deixe em branco para manter' : 'Cole o Secret Access Key'}
+                  placeholderTextColor="#777777"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  secureTextEntry
+                  accessibilityLabel="AWS Secret Access Key"
+                />
+                <Text style={styles.hint}>Use uma credencial IAM com permissão de gravação apenas em bucket/image. As chaves ficam no aparelho.</Text>
                 <Text style={styles.label}>Chave da API Brevo</Text>
                 <TextInput
                   style={styles.input}
@@ -224,6 +304,7 @@ const styles = StyleSheet.create({
   label: { color: '#e6e6e8', fontSize: 15, fontWeight: '500', marginBottom: 8, marginTop: 10 },
   input: { minHeight: 52, borderRadius: 14, backgroundColor: '#252525', borderWidth: 1, borderColor: '#383838', color: '#ffffff', paddingHorizontal: 15, fontSize: 16 },
   hint: { color: '#929296', fontSize: 12, lineHeight: 18, marginTop: 7 },
+  sectionTitle: { color: '#f0f0f2', fontSize: 18, fontWeight: '600', marginTop: 24 },
   primaryButton: { minHeight: 52, borderRadius: 26, backgroundColor: '#369900', alignItems: 'center', justifyContent: 'center', marginTop: 22 },
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#ffffff', fontSize: 17, fontWeight: '700' },

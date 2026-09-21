@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
@@ -7,11 +7,13 @@ import { hasDrawnGlyph, KeyArtwork } from './src/KeyArtwork';
 import { EmailSendModal } from './src/EmailSendModal';
 import { diceImages, type DiceImageName } from './src/diceImages';
 import { diceImageNameFor } from './src/dicePair';
+import { uploadDiceImage } from './src/s3';
 import { appendDecimal, appendDigit, appendOperator, backspace, evaluateExpression, formatResult, toggleParenthesis } from './src/calculator';
 
 type Tool = 'history' | 'converter' | 'scientific' | null;
 type HistoryItem = { expression: string; result: string };
 type DiceSelection = { entered: string; imageName: DiceImageName };
+type UploadFeedback = { kind: 'pending' | 'success' | 'error'; text: string } | null;
 
 const COLOR = {
   black: '#000000', divider: '#282828', white: '#f0f0f2',
@@ -29,10 +31,13 @@ function CalculatorScreen() {
   const [tool, setTool] = useState<Tool>(null);
   const [emailVisible, setEmailVisible] = useState(false);
   const [diceSelection, setDiceSelection] = useState<DiceSelection | null>(null);
+  const [uploadFeedback, setUploadFeedback] = useState<UploadFeedback>(null);
   const [testMode, setTestMode] = useState(false);
   const [justEvaluated, setJustEvaluated] = useState(false);
   const [conversionValue, setConversionValue] = useState('1');
   const [conversionUnit, setConversionUnit] = useState<'cm' | 'm' | 'km'>('cm');
+  const uploadQueue = useRef<Promise<void>>(Promise.resolve());
+  const latestUpload = useRef(0);
 
   const keypadWidth = Math.min(width, 500);
   const keySize = Math.min((keypadWidth - 88) / 4, (height * 0.52 - 32) / 5);
@@ -42,6 +47,31 @@ function CalculatorScreen() {
     const result = evaluateExpression(expression);
     return result === null ? null : formatResult(result);
   }, [expression, justEvaluated]);
+
+  useEffect(() => {
+    if (uploadFeedback?.kind !== 'success') return;
+    const timeout = setTimeout(() => setUploadFeedback(null), 4000);
+    return () => clearTimeout(timeout);
+  }, [uploadFeedback]);
+
+  function queueImageUpload(imageName: DiceImageName) {
+    const uploadId = ++latestUpload.current;
+    setUploadFeedback({ kind: 'pending', text: 'Enviando imagem ao S3...' });
+    // A fila preserva a ordem das escolhas: a última foto termina como o objeto image.
+    uploadQueue.current = uploadQueue.current.catch(() => {}).then(async () => {
+      try {
+        await uploadDiceImage(imageName);
+        if (uploadId === latestUpload.current) {
+          setUploadFeedback({ kind: 'success', text: 'Imagem atualizada no S3.' });
+        }
+      } catch (error) {
+        if (uploadId === latestUpload.current) {
+          const reason = error instanceof Error ? error.message : 'Erro desconhecido.';
+          setUploadFeedback({ kind: 'error', text: `Falha no envio: ${reason}` });
+        }
+      }
+    });
+  }
 
   function pressKey(key: string) {
     if (key === '+/−') {
@@ -61,9 +91,10 @@ function CalculatorScreen() {
         setJustEvaluated(false);
         return;
       }
-      if (testMode) {
-        const imageName = diceImageNameFor(expression);
-        if (imageName !== null) {
+      const imageName = diceImageNameFor(expression);
+      if (imageName !== null) {
+        queueImageUpload(imageName);
+        if (testMode) {
           setDiceSelection({ entered: expression, imageName });
           setJustEvaluated(true);
           return;
@@ -133,6 +164,7 @@ function CalculatorScreen() {
             {!expression && <View style={styles.caret} />}
           </View>
           {preview && <Text style={styles.preview} numberOfLines={1}>= {preview}</Text>}
+          {uploadFeedback && <Text accessibilityRole="alert" style={[styles.uploadFeedback, uploadFeedback.kind === 'error' ? styles.uploadError : styles.uploadSuccess]}>{uploadFeedback.text}</Text>}
         </View>
 
         <View style={[styles.toolbar, { maxWidth: keypadWidth }]}>
@@ -217,6 +249,7 @@ function CalculatorScreen() {
               <Text style={styles.diceClose}>×</Text>
             </Pressable>
           </View>
+          {uploadFeedback && <Text accessibilityRole="alert" style={[styles.diceUploadFeedback, uploadFeedback.kind === 'error' ? styles.uploadError : styles.uploadSuccess]}>{uploadFeedback.text}</Text>}
           {diceSelection && <Image
             source={diceImages[diceSelection.imageName]}
             style={styles.diceImage}
@@ -240,6 +273,9 @@ const styles = StyleSheet.create({
   expression: { color: COLOR.white, fontWeight: '300', textAlign: 'right', flexShrink: 1, includeFontPadding: false },
   caret: { width: 2, height: 47, backgroundColor: COLOR.caret },
   preview: { marginTop: 10, color: COLOR.muted, fontSize: 30, fontWeight: '300', includeFontPadding: false },
+  uploadFeedback: { marginTop: 10, fontSize: 14, textAlign: 'right' },
+  uploadError: { color: COLOR.red },
+  uploadSuccess: { color: COLOR.green },
   toolbar: { width: '100%', height: 76, paddingHorizontal: 24, flexDirection: 'row', alignItems: 'center' },
   toolbarButton: { width: 60, height: 62, justifyContent: 'center', alignItems: 'center' },
   backspaceButton: { width: 62, marginLeft: 'auto' },
@@ -278,5 +314,6 @@ const styles = StyleSheet.create({
   diceHeader: { minHeight: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24 },
   diceTitle: { color: COLOR.white, fontSize: 20, fontWeight: '600' },
   diceClose: { color: COLOR.white, fontSize: 34, lineHeight: 40 },
+  diceUploadFeedback: { paddingHorizontal: 24, paddingBottom: 8, fontSize: 14 },
   diceImage: { flex: 1, width: '100%' },
 });
