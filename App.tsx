@@ -1,15 +1,20 @@
 import { useMemo, useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ToolbarIcon, type ToolbarIconName } from './src/ToolbarIcon';
-import { appendDecimal, appendDigit, appendOperator, backspace, evaluateExpression, formatResult, toggleParenthesis, toggleSign } from './src/calculator';
+import { hasDrawnGlyph, KeyArtwork } from './src/KeyArtwork';
+import { EmailSendModal } from './src/EmailSendModal';
+import { diceImages, type DiceImageName } from './src/diceImages';
+import { diceImageNameFor } from './src/dicePair';
+import { appendDecimal, appendDigit, appendOperator, backspace, evaluateExpression, formatResult, toggleParenthesis } from './src/calculator';
 
 type Tool = 'history' | 'converter' | 'scientific' | null;
 type HistoryItem = { expression: string; result: string };
+type DiceSelection = { entered: string; imageName: DiceImageName };
 
 const COLOR = {
-  black: '#000000', key: '#1f1f1f', divider: '#282828', white: '#f0f0f2',
+  black: '#000000', divider: '#282828', white: '#f0f0f2',
   muted: '#929296', green: '#79d43f', equal: '#369900', red: '#fb6969', caret: '#a2d9d9',
 };
 const ROWS = [
@@ -22,6 +27,8 @@ function CalculatorScreen() {
   const [expression, setExpression] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [tool, setTool] = useState<Tool>(null);
+  const [emailVisible, setEmailVisible] = useState(false);
+  const [diceSelection, setDiceSelection] = useState<DiceSelection | null>(null);
   const [justEvaluated, setJustEvaluated] = useState(false);
   const [conversionValue, setConversionValue] = useState('1');
   const [conversionUnit, setConversionUnit] = useState<'cm' | 'm' | 'km'>('cm');
@@ -36,12 +43,22 @@ function CalculatorScreen() {
   }, [expression, justEvaluated]);
 
   function pressKey(key: string) {
+    if (key === '+/−') {
+      setEmailVisible(true);
+      return;
+    }
     if (key === 'C') {
       setExpression('');
       setJustEvaluated(false);
       return;
     }
     if (key === '=') {
+      const imageName = diceImageNameFor(expression);
+      if (imageName !== null) {
+        setDiceSelection({ entered: expression, imageName });
+        setJustEvaluated(true);
+        return;
+      }
       const result = evaluateExpression(expression);
       if (result !== null) {
         const formatted = formatResult(result);
@@ -56,7 +73,6 @@ function CalculatorScreen() {
       if (/^\d$/.test(key)) return appendDigit(base, key);
       if (key === ',') return appendDecimal(base);
       if (key === '()') return toggleParenthesis(base);
-      if (key === '+/−') return toggleSign(base);
       if (key === '%') return base && /[\d)]$/.test(base) ? `${base}%` : base;
       return appendOperator(base, key);
     });
@@ -118,20 +134,18 @@ function CalculatorScreen() {
           {ROWS.map((row, rowIndex) => (
             <View key={rowIndex} style={[styles.keyRow, { gap: keyGap, marginBottom: rowIndex === 4 ? 0 : 8 }]}>
               {row.map((key) => {
-                const operation = ['()', '%', '÷', '×', '−', '+'].includes(key);
-                const equal = key === '=';
-                const fontSize = key === '+/−' ? keySize * 0.43 : key === 'C' ? keySize * 0.48 :
-                  key === '%' ? keySize * 0.49 : operation || equal ? keySize * 0.67 : keySize * 0.58;
+                const drawn = hasDrawnGlyph(key);
+                const fontSize = key === 'C' ? keySize * 0.43 : keySize * 0.47;
                 return (
                   <Pressable
                     key={key}
                     onPress={() => pressKey(key)}
-                    android_ripple={{ color: '#424242', borderless: true }}
                     accessibilityRole="button"
-                    accessibilityLabel={key === '()' ? 'Parênteses' : key === '+/−' ? 'Trocar sinal' : key}
-                    style={({ pressed }) => [styles.key, { width: keySize, height: keySize, borderRadius: keySize / 2, backgroundColor: equal ? COLOR.equal : COLOR.key }, pressed && { opacity: 0.78 }]}
+                    accessibilityLabel={key === '()' ? 'Parênteses' : key === '+/−' ? 'Enviar imagem por e-mail' : key}
+                    style={({ pressed }) => [styles.key, { width: keySize, height: keySize, borderRadius: keySize / 2 }, pressed && { opacity: 0.78 }]}
                   >
-                    <Text allowFontScaling={false} style={[styles.keyText, { fontSize, color: key === 'C' ? COLOR.red : operation ? COLOR.green : COLOR.white }, equal && styles.equalsText]}>{key}</Text>
+                    <KeyArtwork label={key} size={keySize} />
+                    {!drawn && <Text allowFontScaling={false} style={[styles.keyText, { fontSize, color: key === 'C' ? COLOR.red : COLOR.white }]}>{key}</Text>}
                   </Pressable>
                 );
               })}
@@ -181,6 +195,23 @@ function CalculatorScreen() {
           </View>
         </View>
       </Modal>
+      <Modal visible={diceSelection !== null} transparent animationType="fade" onRequestClose={() => setDiceSelection(null)} statusBarTranslucent>
+        <SafeAreaView style={styles.diceModal} edges={['top', 'bottom']}>
+          <View style={styles.diceHeader}>
+            <Text style={styles.diceTitle}>Resultado {diceSelection?.entered}</Text>
+            <Pressable onPress={() => setDiceSelection(null)} accessibilityRole="button" accessibilityLabel="Fechar imagem" hitSlop={12}>
+              <Text style={styles.diceClose}>×</Text>
+            </Pressable>
+          </View>
+          {diceSelection && <Image
+            source={diceImages[diceSelection.imageName]}
+            style={styles.diceImage}
+            resizeMode="contain"
+            accessibilityLabel={`Imagem dos dados ${diceSelection.entered}`}
+          />}
+        </SafeAreaView>
+      </Modal>
+      <EmailSendModal visible={emailVisible} onClose={() => setEmailVisible(false)} />
     </SafeAreaView>
   );
 }
@@ -189,8 +220,8 @@ export default function App() { return <SafeAreaProvider><CalculatorScreen /></S
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLOR.black },
-  screen: { flex: 1, backgroundColor: COLOR.black, alignItems: 'center', paddingBottom: 20 },
-  display: { flex: 1, width: '100%', paddingHorizontal: 34, paddingTop: 52, alignItems: 'flex-end' },
+  screen: { flex: 1, backgroundColor: COLOR.black, alignItems: 'center', paddingBottom: 14 },
+  display: { flex: 1, width: '100%', paddingHorizontal: 34, paddingTop: 50, alignItems: 'flex-end' },
   expressionLine: { width: '100%', minHeight: 54, flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
   expression: { color: COLOR.white, fontWeight: '300', textAlign: 'right', flexShrink: 1, includeFontPadding: false },
   caret: { width: 2, height: 47, backgroundColor: COLOR.caret },
@@ -203,7 +234,6 @@ const styles = StyleSheet.create({
   keyRow: { flexDirection: 'row', justifyContent: 'space-between' },
   key: { justifyContent: 'center', alignItems: 'center', overflow: 'hidden' },
   keyText: { fontWeight: '300', includeFontPadding: false, textAlign: 'center' },
-  equalsText: { color: COLOR.white, fontWeight: '700' },
   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'flex-end' },
   sheet: { backgroundColor: '#151515', paddingHorizontal: 24, paddingTop: 20, paddingBottom: 40, borderTopLeftRadius: 28, borderTopRightRadius: 28, maxHeight: '80%' },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
@@ -230,4 +260,9 @@ const styles = StyleSheet.create({
   scientificGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingBottom: 8 },
   scientificKey: { width: '30%', backgroundColor: '#292929', borderRadius: 20, alignItems: 'center', paddingVertical: 16 },
   scientificKeyText: { color: COLOR.green, fontSize: 21 },
+  diceModal: { flex: 1, backgroundColor: COLOR.black },
+  diceHeader: { minHeight: 64, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24 },
+  diceTitle: { color: COLOR.white, fontSize: 20, fontWeight: '600' },
+  diceClose: { color: COLOR.white, fontSize: 34, lineHeight: 40 },
+  diceImage: { flex: 1, width: '100%' },
 });
