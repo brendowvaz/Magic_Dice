@@ -11,12 +11,11 @@ export type MailSettings = {
   awsSecretAccessKey: string;
 };
 
-export const PLACEHOLDER_IMAGE_URL = 'https://seu-bucket.s3.sa-east-1.amazonaws.com/image';
-export const S3_IMAGE_KEY = 'image';
-const OLD_PLACEHOLDER_IMAGE_URL = 'https://seu-bucket.s3.amazonaws.com/imagem.jpg';
+export const PLACEHOLDER_IMAGE_URL ='https://seu-bucket.s3.amazonaws.com/imagem.jpg';
+export const S3_IMAGE_KEY = 'image.jpg';
 
 export function isPlaceholderImageUrl(url: string): boolean {
-  return url === PLACEHOLDER_IMAGE_URL || url === OLD_PLACEHOLDER_IMAGE_URL;
+  return url === PLACEHOLDER_IMAGE_URL
 }
 
 export function s3ImageUrl(bucket: string, region: string): string {
