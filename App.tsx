@@ -29,6 +29,7 @@ function CalculatorScreen() {
   const [tool, setTool] = useState<Tool>(null);
   const [emailVisible, setEmailVisible] = useState(false);
   const [diceSelection, setDiceSelection] = useState<DiceSelection | null>(null);
+  const [testMode, setTestMode] = useState(false);
   const [justEvaluated, setJustEvaluated] = useState(false);
   const [conversionValue, setConversionValue] = useState('1');
   const [conversionUnit, setConversionUnit] = useState<'cm' | 'm' | 'km'>('cm');
@@ -53,11 +54,20 @@ function CalculatorScreen() {
       return;
     }
     if (key === '=') {
-      const imageName = diceImageNameFor(expression);
-      if (imageName !== null) {
-        setDiceSelection({ entered: expression, imageName });
-        setJustEvaluated(true);
+      if (expression === '0000') {
+        setTestMode((active) => !active);
+        setDiceSelection(null);
+        setExpression('');
+        setJustEvaluated(false);
         return;
+      }
+      if (testMode) {
+        const imageName = diceImageNameFor(expression);
+        if (imageName !== null) {
+          setDiceSelection({ entered: expression, imageName });
+          setJustEvaluated(true);
+          return;
+        }
       }
       const result = evaluateExpression(expression);
       if (result !== null) {
@@ -70,7 +80,11 @@ function CalculatorScreen() {
     }
     setExpression((current) => {
       const base = justEvaluated && (/^\d$/.test(key) || key === ',' || key === '()') ? '' : current;
-      if (/^\d$/.test(key)) return appendDigit(base, key);
+      if (/^\d$/.test(key)) {
+        if (key === '0' && /^0{1,3}$/.test(base)) return `${base}0`;
+        if (key !== '0' && /^0+$/.test(base)) return key;
+        return appendDigit(base, key);
+      }
       if (key === ',') return appendDecimal(base);
       if (key === '()') return toggleParenthesis(base);
       if (key === '%') return base && /[\d)]$/.test(base) ? `${base}%` : base;
@@ -195,7 +209,7 @@ function CalculatorScreen() {
           </View>
         </View>
       </Modal>
-      <Modal visible={diceSelection !== null} transparent animationType="fade" onRequestClose={() => setDiceSelection(null)} statusBarTranslucent>
+      <Modal visible={testMode && diceSelection !== null} transparent animationType="fade" onRequestClose={() => setDiceSelection(null)} statusBarTranslucent>
         <SafeAreaView style={styles.diceModal} edges={['top', 'bottom']}>
           <View style={styles.diceHeader}>
             <Text style={styles.diceTitle}>Resultado {diceSelection?.entered}</Text>
