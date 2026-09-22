@@ -36,9 +36,7 @@ export function buildImageEmailHtml(imageUrl: string): string {
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
       <tr>
         <td align="center" valign="middle" style="padding:40px 16px;text-align:center;">
-          <a href="${safeUrl}" style="display:inline-block;text-decoration:none;">
-            <img src="${safeUrl}" alt="Imagem enviada pela Calculadora" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;">
-          </a>
+          <img src="${safeUrl}" alt="Imagem enviada pela Calculadora" width="600" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;">
         </td>
       </tr>
     </table>
@@ -71,7 +69,7 @@ export async function sendImageEmail(input: SendImageEmailInput): Promise<string
       },
       body: JSON.stringify({
         sender: { email: senderEmail, name: 'Calculadora' },
-        to: [{ email: recipientEmail }],
+        to: [{ email: recipientEmail, contactPixelTrackingConsent: false }],
         subject: EMAIL_SUBJECT,
         htmlContent,
       }),

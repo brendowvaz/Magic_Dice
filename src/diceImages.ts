@@ -25,3 +25,5 @@ export const diceImages = {
 } as const;
 
 export type DiceImageName = keyof typeof diceImages;
+
+export const diceImageNames = Object.keys(diceImages).map(Number) as DiceImageName[];

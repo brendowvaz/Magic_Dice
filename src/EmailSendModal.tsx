@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
+import * as Clipboard from 'expo-clipboard';
 import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { isValidEmail, isValidImageUrl, sendImageEmail } from './brevo';
+import { buildImageEmailHtml, isValidEmail, isValidImageUrl, sendImageEmail } from './brevo';
 import { isPlaceholderImageUrl, loadMailSettings, s3ImageUrl, saveMailSettings, type MailSettings } from './mailSettings';
 
 type Feedback = { kind: 'error' | 'success'; text: string } | null;
@@ -98,8 +99,8 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
       setFeedback({ kind: 'error', text: 'Digite um link HTTPS válido para a imagem.' });
       return;
     }
-    if (next.imageUrl && !new URL(next.imageUrl).pathname.endsWith('/image')) {
-      setFeedback({ kind: 'error', text: 'O link público precisa apontar para o objeto image, sem extensão.' });
+    if (next.imageUrl && !new URL(next.imageUrl).pathname.endsWith('/image.jpg')) {
+      setFeedback({ kind: 'error', text: 'O link público precisa apontar para o objeto image.jpg.' });
       return;
     }
 
@@ -153,6 +154,25 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
     }
   }
 
+  async function copyHtml() {
+    const configuredImageUrl = settings?.imageUrl.trim() ?? '';
+    setFeedback(null);
+
+    if (!isValidImageUrl(configuredImageUrl)) {
+      openSettings('Configure um link HTTPS válido para copiar o HTML.');
+      return;
+    }
+
+    try {
+      const html = buildImageEmailHtml(configuredImageUrl);
+      const copied = await Clipboard.setStringAsync(html);
+      if (!copied) throw new Error('Clipboard unavailable');
+      setFeedback({ kind: 'success', text: 'HTML copiado.' });
+    } catch {
+      setFeedback({ kind: 'error', text: 'Não foi possível copiar o HTML.' });
+    }
+  }
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close} statusBarTranslucent>
       <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
@@ -189,6 +209,9 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
                 {!isBrevoConfigured && <Text style={styles.hint}>Preencha as configurações da Brevo para liberar o envio.</Text>}
                 <Pressable style={[styles.primaryButton, (sending || loading || !isBrevoConfigured) && styles.disabledButton]} onPress={send} disabled={sending || loading || !isBrevoConfigured} accessibilityRole="button" accessibilityLabel="Enviar" accessibilityState={{ disabled: sending || loading || !isBrevoConfigured }}>
                   {sending ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.primaryButtonText}>Enviar</Text>}
+                </Pressable>
+                <Pressable style={styles.copyButton} onPress={copyHtml} accessibilityRole="button" accessibilityLabel="Copiar HTML">
+                  <Text style={styles.copyButtonText}>Copiar HTML</Text>
                 </Pressable>
                 <Pressable style={styles.secondaryButton} onPress={() => openSettings()} accessibilityRole="button" accessibilityLabel="Configurar envio">
                   <Text style={styles.secondaryText}>Configurar envio</Text>
@@ -244,7 +267,7 @@ export function EmailSendModal({ visible, onClose }: { visible: boolean; onClose
                     secureTextEntry
                     accessibilityLabel="AWS Secret Access Key"
                   />
-                  <Text style={styles.hint}>Use uma credencial IAM com permissão de gravação apenas em bucket/image. As chaves ficam no aparelho.</Text>
+                  <Text style={styles.hint}>Use uma credencial IAM com permissão de gravação apenas em bucket/image.jpg. As chaves ficam no aparelho.</Text>
                 </View>
                 <View style={styles.settingsSection}>
                   <View style={styles.sectionHeader}>
@@ -326,6 +349,8 @@ const styles = StyleSheet.create({
   primaryButton: { minHeight: 52, borderRadius: 26, backgroundColor: '#369900', alignItems: 'center', justifyContent: 'center', marginTop: 22 },
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#ffffff', fontSize: 17, fontWeight: '700' },
+  copyButton: { minHeight: 48, borderRadius: 24, borderWidth: 1, borderColor: '#315b25', alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  copyButtonText: { color: '#79d43f', fontSize: 15, fontWeight: '700' },
   secondaryButton: { alignItems: 'center', paddingVertical: 15 },
   secondaryText: { color: '#79d43f', fontSize: 15, fontWeight: '600' },
   feedback: { fontSize: 14, lineHeight: 20, textAlign: 'center', marginTop: 4 },

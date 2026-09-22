@@ -5,7 +5,9 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ToolbarIcon, type ToolbarIconName } from './src/ToolbarIcon';
 import { hasDrawnGlyph, KeyArtwork } from './src/KeyArtwork';
 import { EmailSendModal } from './src/EmailSendModal';
-import { diceImages, type DiceImageName } from './src/diceImages';
+import { type DiceImageName } from './src/diceImages';
+import { DicePhotoManagerModal } from './src/DicePhotoManagerModal';
+import { getDicePhotoSource } from './src/dicePhotoOverrides';
 import { diceImageNameFor } from './src/dicePair';
 import { uploadDiceImage } from './src/s3';
 import { appendDecimal, appendDigit, appendOperator, backspace, evaluateExpression, formatResult, toggleParenthesis } from './src/calculator';
@@ -30,6 +32,8 @@ function CalculatorScreen() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [tool, setTool] = useState<Tool>(null);
   const [emailVisible, setEmailVisible] = useState(false);
+  const [photoManagerVisible, setPhotoManagerVisible] = useState(false);
+  const [photoRevision, setPhotoRevision] = useState(0);
   const [diceSelection, setDiceSelection] = useState<DiceSelection | null>(null);
   const [uploadFeedback, setUploadFeedback] = useState<UploadFeedback>(null);
   const [testMode, setTestMode] = useState(false);
@@ -57,7 +61,7 @@ function CalculatorScreen() {
   function queueImageUpload(imageName: DiceImageName) {
     const uploadId = ++latestUpload.current;
     setUploadFeedback({ kind: 'pending', text: 'Enviando imagem ao S3...' });
-    // A fila preserva a ordem das escolhas: a última foto termina como o objeto image.
+    // A fila preserva a ordem das escolhas: a última foto termina como o objeto image.jpg.
     uploadQueue.current = uploadQueue.current.catch(() => {}).then(async () => {
       try {
         await uploadDiceImage(imageName);
@@ -84,6 +88,13 @@ function CalculatorScreen() {
       return;
     }
     if (key === '=') {
+      if (expression === '9999') {
+        setPhotoManagerVisible(true);
+        setDiceSelection(null);
+        setExpression('');
+        setJustEvaluated(false);
+        return;
+      }
       if (expression === '0000') {
         setTestMode((active) => !active);
         setDiceSelection(null);
@@ -251,7 +262,8 @@ function CalculatorScreen() {
           </View>
           {uploadFeedback && <Text accessibilityRole="alert" style={[styles.diceUploadFeedback, uploadFeedback.kind === 'error' ? styles.uploadError : styles.uploadSuccess]}>{uploadFeedback.text}</Text>}
           {diceSelection && <Image
-            source={diceImages[diceSelection.imageName]}
+            key={`${diceSelection.imageName}-${photoRevision}`}
+            source={getDicePhotoSource(diceSelection.imageName)}
             style={styles.diceImage}
             resizeMode="contain"
             accessibilityLabel={`Imagem dos dados ${diceSelection.entered}`}
@@ -259,6 +271,11 @@ function CalculatorScreen() {
         </SafeAreaView>
       </Modal>
       <EmailSendModal visible={emailVisible} onClose={() => setEmailVisible(false)} />
+      <DicePhotoManagerModal
+        visible={photoManagerVisible}
+        onClose={() => setPhotoManagerVisible(false)}
+        onImageChanged={() => setPhotoRevision((value) => value + 1)}
+      />
     </SafeAreaView>
   );
 }

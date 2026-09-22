@@ -5,10 +5,13 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1136.0",
     "@expo/metro-runtime": "~57.0.16",
+    "@xmldom/xmldom": "^0.8.15",
     "expo": "~57.0.24",
     "expo-asset": "~57.0.18",
+    "expo-clipboard": "~57.0.2",
     "expo-crypto": "~57.0.3",
     "expo-file-system": "~57.0.7",
+    "expo-image-picker": "~57.0.19",
     "expo-secure-store": "~57.0.4",
     "expo-status-bar": "~57.0.1",
     "react": "19.2.3",
@@ -26,8 +29,8 @@
   },
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web"
   },
   "private": true
