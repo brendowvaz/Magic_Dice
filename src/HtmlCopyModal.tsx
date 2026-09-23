@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
 import * as Clipboard from 'expo-clipboard';
-import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { buildImageHtml } from './imageHtml';
 import { loadS3Settings, s3ImageUrl, saveS3Settings, type S3Settings } from './s3Settings';
 
@@ -32,10 +43,15 @@ export function HtmlCopyModal({ visible, onClose }: { visible: boolean; onClose:
         setAwsSecretAccessKeyInput('');
       })
       .catch(() => {
-        if (active) setFeedback({ kind: 'error', text: 'Não foi possível ler as configurações do S3.' });
+        if (active)
+          setFeedback({ kind: 'error', text: 'Não foi possível ler as configurações do S3.' });
       })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [visible]);
 
   function openSettings(message?: string) {
@@ -97,15 +113,29 @@ export function HtmlCopyModal({ visible, onClose }: { visible: boolean; onClose:
     }
   }
 
-  const configuredUrl = settings?.s3Bucket && settings.s3Region
-    ? s3ImageUrl(settings.s3Bucket, settings.s3Region)
-    : null;
+  const configuredUrl =
+    settings?.s3Bucket && settings.s3Region
+      ? s3ImageUrl(settings.s3Bucket, settings.s3Region)
+      : null;
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView style={styles.keyboardView} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+      statusBarTranslucent
+    >
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.overlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Fechar" />
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={onClose}
+            accessibilityLabel="Fechar"
+          />
           <View style={styles.sheet}>
             <View style={styles.header}>
               <Text style={styles.title}>{page === 'copy' ? 'Copiar HTML' : 'Configurar S3'}</Text>
@@ -115,67 +145,120 @@ export function HtmlCopyModal({ visible, onClose }: { visible: boolean; onClose:
             </View>
 
             <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.content}>
-              {loading && !settings ? <ActivityIndicator color="#79d43f" style={styles.loader} /> : page === 'copy' ? <>
-                <Pressable style={[styles.primaryButton, loading && styles.disabledButton]} onPress={copyHtml} disabled={loading} accessibilityRole="button" accessibilityLabel="Copiar HTML">
-                  <Text style={styles.primaryButtonText}>Copiar HTML</Text>
-                </Pressable>
-                <Pressable style={styles.secondaryButton} onPress={() => openSettings()} accessibilityRole="button" accessibilityLabel="Configurar S3">
-                  <Text style={styles.secondaryText}>Configurar S3</Text>
-                </Pressable>
-              </> : <>
-                <Text style={styles.label}>Nome do bucket</Text>
-                <TextInput
-                  style={styles.input}
-                  value={s3Bucket}
-                  onChangeText={setS3Bucket}
-                  placeholder="meu-bucket"
-                  placeholderTextColor="#777777"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  accessibilityLabel="Nome do bucket S3"
-                />
-                <Text style={styles.label}>Região AWS</Text>
-                <TextInput
-                  style={styles.input}
-                  value={s3Region}
-                  onChangeText={setS3Region}
-                  placeholder="sa-east-1"
-                  placeholderTextColor="#777777"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  accessibilityLabel="Região AWS"
-                />
-                <Text style={styles.label}>AWS Access Key ID</Text>
-                <TextInput
-                  style={styles.input}
-                  value={awsAccessKeyIdInput}
-                  onChangeText={setAwsAccessKeyIdInput}
-                  placeholder={settings?.awsAccessKeyId ? 'Chave salva; deixe em branco para manter' : 'Cole o Access Key ID'}
-                  placeholderTextColor="#777777"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  accessibilityLabel="AWS Access Key ID"
-                />
-                <Text style={styles.label}>AWS Secret Access Key</Text>
-                <TextInput
-                  style={styles.input}
-                  value={awsSecretAccessKeyInput}
-                  onChangeText={setAwsSecretAccessKeyInput}
-                  placeholder={settings?.awsSecretAccessKey ? 'Chave salva; deixe em branco para manter' : 'Cole o Secret Access Key'}
-                  placeholderTextColor="#777777"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  secureTextEntry
-                  accessibilityLabel="AWS Secret Access Key"
-                />
-                <Pressable style={[styles.primaryButton, loading && styles.disabledButton]} onPress={saveSettings} disabled={loading} accessibilityRole="button" accessibilityLabel="Salvar configuração do S3">
-                  {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.primaryButtonText}>Salvar</Text>}
-                </Pressable>
-                <Pressable style={styles.secondaryButton} onPress={() => { setPage('copy'); setFeedback(null); }} accessibilityRole="button" accessibilityLabel="Voltar">
-                  <Text style={styles.secondaryText}>Voltar</Text>
-                </Pressable>
-              </>}
-              {feedback && <Text accessibilityRole="alert" style={[styles.feedback, feedback.kind === 'error' ? styles.error : styles.success]}>{feedback.text}</Text>}
+              {loading && !settings ? (
+                <ActivityIndicator color="#79d43f" style={styles.loader} />
+              ) : page === 'copy' ? (
+                <>
+                  <Pressable
+                    style={[styles.primaryButton, loading && styles.disabledButton]}
+                    onPress={copyHtml}
+                    disabled={loading}
+                    accessibilityRole="button"
+                    accessibilityLabel="Copiar HTML"
+                  >
+                    <Text style={styles.primaryButtonText}>Copiar HTML</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.secondaryButton}
+                    onPress={() => openSettings()}
+                    accessibilityRole="button"
+                    accessibilityLabel="Configurar S3"
+                  >
+                    <Text style={styles.secondaryText}>Configurar S3</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.label}>Nome do bucket</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={s3Bucket}
+                    onChangeText={setS3Bucket}
+                    placeholder="meu-bucket"
+                    placeholderTextColor="#777777"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel="Nome do bucket S3"
+                  />
+                  <Text style={styles.label}>Região AWS</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={s3Region}
+                    onChangeText={setS3Region}
+                    placeholder="sa-east-1"
+                    placeholderTextColor="#777777"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel="Região AWS"
+                  />
+                  <Text style={styles.label}>AWS Access Key ID</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={awsAccessKeyIdInput}
+                    onChangeText={setAwsAccessKeyIdInput}
+                    placeholder={
+                      settings?.awsAccessKeyId
+                        ? 'Chave salva; deixe em branco para manter'
+                        : 'Cole o Access Key ID'
+                    }
+                    placeholderTextColor="#777777"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    accessibilityLabel="AWS Access Key ID"
+                  />
+                  <Text style={styles.label}>AWS Secret Access Key</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={awsSecretAccessKeyInput}
+                    onChangeText={setAwsSecretAccessKeyInput}
+                    placeholder={
+                      settings?.awsSecretAccessKey
+                        ? 'Chave salva; deixe em branco para manter'
+                        : 'Cole o Secret Access Key'
+                    }
+                    placeholderTextColor="#777777"
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    secureTextEntry
+                    accessibilityLabel="AWS Secret Access Key"
+                  />
+                  <Pressable
+                    style={[styles.primaryButton, loading && styles.disabledButton]}
+                    onPress={saveSettings}
+                    disabled={loading}
+                    accessibilityRole="button"
+                    accessibilityLabel="Salvar configuração do S3"
+                  >
+                    {loading ? (
+                      <ActivityIndicator color="#ffffff" />
+                    ) : (
+                      <Text style={styles.primaryButtonText}>Salvar</Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    style={styles.secondaryButton}
+                    onPress={() => {
+                      setPage('copy');
+                      setFeedback(null);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Voltar"
+                  >
+                    <Text style={styles.secondaryText}>Voltar</Text>
+                  </Pressable>
+                </>
+              )}
+              {feedback && (
+                <Text
+                  accessibilityRole="alert"
+                  style={[
+                    styles.feedback,
+                    feedback.kind === 'error' ? styles.error : styles.success,
+                  ]}
+                >
+                  {feedback.text}
+                </Text>
+              )}
             </ScrollView>
           </View>
         </View>
@@ -187,15 +270,44 @@ export function HtmlCopyModal({ visible, onClose }: { visible: boolean; onClose:
 const styles = StyleSheet.create({
   keyboardView: { flex: 1 },
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
-  sheet: { backgroundColor: '#151515', borderTopLeftRadius: 28, borderTopRightRadius: 28, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 28, maxHeight: '88%' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  sheet: {
+    backgroundColor: '#151515',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 28,
+    maxHeight: '88%',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
   title: { color: '#f0f0f2', fontSize: 22, fontWeight: '600' },
   close: { color: '#929296', fontSize: 32, lineHeight: 34 },
   content: { paddingBottom: 8 },
   loader: { paddingVertical: 36 },
   label: { color: '#e6e6e8', fontSize: 15, fontWeight: '500', marginBottom: 8, marginTop: 10 },
-  input: { minHeight: 52, borderRadius: 14, backgroundColor: '#252525', borderWidth: 1, borderColor: '#383838', color: '#ffffff', paddingHorizontal: 15, fontSize: 16 },
-  primaryButton: { minHeight: 52, borderRadius: 26, backgroundColor: '#369900', alignItems: 'center', justifyContent: 'center', marginTop: 22 },
+  input: {
+    minHeight: 52,
+    borderRadius: 14,
+    backgroundColor: '#252525',
+    borderWidth: 1,
+    borderColor: '#383838',
+    color: '#ffffff',
+    paddingHorizontal: 15,
+    fontSize: 16,
+  },
+  primaryButton: {
+    minHeight: 52,
+    borderRadius: 26,
+    backgroundColor: '#369900',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 22,
+  },
   disabledButton: { opacity: 0.65 },
   primaryButtonText: { color: '#ffffff', fontSize: 17, fontWeight: '700' },
   secondaryButton: { alignItems: 'center', paddingVertical: 15 },

@@ -3,7 +3,12 @@ const OPERATORS = ['+', '−', '×', '÷'];
 function currentNumberStart(expression: string) {
   let index = expression.length - 1;
   while (index >= 0 && /[\d,]/.test(expression[index])) index--;
-  if (index >= 0 && expression[index] === '−' && (index === 0 || /[+−×÷(]/.test(expression[index - 1]))) index--;
+  if (
+    index >= 0 &&
+    expression[index] === '−' &&
+    (index === 0 || /[+−×÷(]/.test(expression[index - 1]))
+  )
+    index--;
   return index + 1;
 }
 
@@ -53,7 +58,9 @@ export function toggleSign(expression: string) {
   return expression.slice(0, start) + '−' + number;
 }
 
-export function backspace(expression: string) { return expression.slice(0, -1); }
+export function backspace(expression: string) {
+  return expression.slice(0, -1);
+}
 
 export function evaluateExpression(expression: string): number | null {
   const input = expression.replace(/,/g, '.');
@@ -80,7 +87,10 @@ export function evaluateExpression(expression: string): number | null {
       if (input[index] !== ')') throw new Error('Parêntese aberto');
       index++;
     } else value = parseNumber();
-    while (input[index] === '%') { value /= 100; index++; }
+    while (input[index] === '%') {
+      value /= 100;
+      index++;
+    }
     return sign * value;
   }
   function parseProduct(): number {
@@ -105,7 +115,9 @@ export function evaluateExpression(expression: string): number | null {
     if (!input) return null;
     const result = parseSum();
     return index === input.length && Number.isFinite(result) ? result : null;
-  } catch { return null; }
+  } catch {
+    return null;
+  }
 }
 
 export function formatResult(value: number) {

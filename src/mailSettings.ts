@@ -11,11 +11,11 @@ export type MailSettings = {
   awsSecretAccessKey: string;
 };
 
-export const PLACEHOLDER_IMAGE_URL ='https://seu-bucket.s3.amazonaws.com/imagem.jpg';
+export const PLACEHOLDER_IMAGE_URL = 'https://seu-bucket.s3.amazonaws.com/imagem.jpg';
 export const S3_IMAGE_KEY = 'image.jpg';
 
 export function isPlaceholderImageUrl(url: string): boolean {
-  return url === PLACEHOLDER_IMAGE_URL
+  return url === PLACEHOLDER_IMAGE_URL;
 }
 
 export function s3ImageUrl(bucket: string, region: string): string {
@@ -52,15 +52,16 @@ let webSettings: MailSettings | null = null;
 export async function loadMailSettings(): Promise<MailSettings> {
   if (Platform.OS === 'web') return webSettings ?? { ...DEFAULT_SETTINGS };
 
-  const [apiKey, senderEmail, imageUrl, s3Bucket, s3Region, awsAccessKeyId, awsSecretAccessKey] = await Promise.all([
-    SecureStore.getItemAsync(STORAGE_KEYS.apiKey),
-    SecureStore.getItemAsync(STORAGE_KEYS.senderEmail),
-    SecureStore.getItemAsync(STORAGE_KEYS.imageUrl),
-    SecureStore.getItemAsync(STORAGE_KEYS.s3Bucket),
-    SecureStore.getItemAsync(STORAGE_KEYS.s3Region),
-    SecureStore.getItemAsync(STORAGE_KEYS.awsAccessKeyId),
-    SecureStore.getItemAsync(STORAGE_KEYS.awsSecretAccessKey),
-  ]);
+  const [apiKey, senderEmail, imageUrl, s3Bucket, s3Region, awsAccessKeyId, awsSecretAccessKey] =
+    await Promise.all([
+      SecureStore.getItemAsync(STORAGE_KEYS.apiKey),
+      SecureStore.getItemAsync(STORAGE_KEYS.senderEmail),
+      SecureStore.getItemAsync(STORAGE_KEYS.imageUrl),
+      SecureStore.getItemAsync(STORAGE_KEYS.s3Bucket),
+      SecureStore.getItemAsync(STORAGE_KEYS.s3Region),
+      SecureStore.getItemAsync(STORAGE_KEYS.awsAccessKeyId),
+      SecureStore.getItemAsync(STORAGE_KEYS.awsSecretAccessKey),
+    ]);
 
   return {
     apiKey: apiKey ?? DEFAULT_SETTINGS.apiKey,

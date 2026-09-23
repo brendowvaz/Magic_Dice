@@ -21,7 +21,10 @@ export function getDicePhotoSource(imageName: DiceImageName): ImageSourcePropTyp
   return overrideUri ? { uri: overrideUri, cache: 'reload' } : diceImages[imageName];
 }
 
-export async function saveDicePhotoOverride(imageName: DiceImageName, jpegBase64: string): Promise<string> {
+export async function saveDicePhotoOverride(
+  imageName: DiceImageName,
+  jpegBase64: string,
+): Promise<string> {
   if (Platform.OS === 'web') {
     const uri = `data:image/jpeg;base64,${jpegBase64}`;
     webOverrides.set(imageName, uri);

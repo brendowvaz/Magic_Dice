@@ -30,7 +30,12 @@ async function imageBytes(imageName: DiceImageName): Promise<Uint8Array<ArrayBuf
 
 export async function uploadDiceImage(imageName: DiceImageName): Promise<void> {
   const settings = await loadS3Settings();
-  if (!settings.s3Bucket || !settings.s3Region || !settings.awsAccessKeyId || !settings.awsSecretAccessKey) {
+  if (
+    !settings.s3Bucket ||
+    !settings.s3Region ||
+    !settings.awsAccessKeyId ||
+    !settings.awsSecretAccessKey
+  ) {
     throw new Error('Configure o S3 em +/− → Configurar S3.');
   }
 
@@ -48,13 +53,15 @@ export async function uploadDiceImage(imageName: DiceImageName): Promise<void> {
   });
 
   try {
-    await client.send(new PutObjectCommand({
-      Bucket: settings.s3Bucket,
-      Key: S3_IMAGE_KEY,
-      Body: body,
-      ContentType: 'image/jpeg',
-      CacheControl: 'no-cache, max-age=0, must-revalidate',
-    }));
+    await client.send(
+      new PutObjectCommand({
+        Bucket: settings.s3Bucket,
+        Key: S3_IMAGE_KEY,
+        Body: body,
+        ContentType: 'image/jpeg',
+        CacheControl: 'no-cache, max-age=0, must-revalidate',
+      }),
+    );
   } finally {
     client.destroy();
   }
