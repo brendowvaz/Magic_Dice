@@ -4,7 +4,7 @@ import { File } from 'expo-file-system';
 import { Platform } from 'react-native';
 import { diceImages, type DiceImageName } from './diceImages';
 import { getDicePhotoOverrideUri } from './dicePhotoOverrides';
-import { loadMailSettings, S3_IMAGE_KEY } from './mailSettings';
+import { loadS3Settings, S3_IMAGE_KEY } from './s3Settings';
 
 async function imageBytes(imageName: DiceImageName): Promise<Uint8Array<ArrayBuffer>> {
   const overrideUri = getDicePhotoOverrideUri(imageName);
@@ -29,9 +29,9 @@ async function imageBytes(imageName: DiceImageName): Promise<Uint8Array<ArrayBuf
 }
 
 export async function uploadDiceImage(imageName: DiceImageName): Promise<void> {
-  const settings = await loadMailSettings();
+  const settings = await loadS3Settings();
   if (!settings.s3Bucket || !settings.s3Region || !settings.awsAccessKeyId || !settings.awsSecretAccessKey) {
-    throw new Error('Configure o S3 em +/− → Configurar envio.');
+    throw new Error('Configure o S3 em +/− → Configurar S3.');
   }
 
   const body = await imageBytes(imageName);

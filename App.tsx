@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { ToolbarIcon, type ToolbarIconName } from './src/ToolbarIcon';
 import { hasDrawnGlyph, KeyArtwork } from './src/KeyArtwork';
-import { EmailSendModal } from './src/EmailSendModal';
+import { HtmlCopyModal } from './src/HtmlCopyModal';
 import { type DiceImageName } from './src/diceImages';
 import { DicePhotoManagerModal } from './src/DicePhotoManagerModal';
 import { getDicePhotoSource } from './src/dicePhotoOverrides';
@@ -31,7 +31,7 @@ function CalculatorScreen() {
   const [expression, setExpression] = useState('');
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [tool, setTool] = useState<Tool>(null);
-  const [emailVisible, setEmailVisible] = useState(false);
+  const [htmlCopyVisible, setHtmlCopyVisible] = useState(false);
   const [photoManagerVisible, setPhotoManagerVisible] = useState(false);
   const [photoRevision, setPhotoRevision] = useState(0);
   const [diceSelection, setDiceSelection] = useState<DiceSelection | null>(null);
@@ -79,7 +79,7 @@ function CalculatorScreen() {
 
   function pressKey(key: string) {
     if (key === '+/−') {
-      setEmailVisible(true);
+      setHtmlCopyVisible(true);
       return;
     }
     if (key === 'C') {
@@ -198,7 +198,7 @@ function CalculatorScreen() {
                     key={key}
                     onPress={() => pressKey(key)}
                     accessibilityRole="button"
-                    accessibilityLabel={key === '()' ? 'Parênteses' : key === '+/−' ? 'Enviar imagem por e-mail' : key}
+                    accessibilityLabel={key === '()' ? 'Parênteses' : key === '+/−' ? 'Copiar HTML da imagem' : key}
                     style={({ pressed }) => [styles.key, { width: keySize, height: keySize, borderRadius: keySize / 2 }, pressed && { opacity: 0.78 }]}
                   >
                     <KeyArtwork label={key} size={keySize} />
@@ -270,7 +270,7 @@ function CalculatorScreen() {
           />}
         </SafeAreaView>
       </Modal>
-      <EmailSendModal visible={emailVisible} onClose={() => setEmailVisible(false)} />
+      <HtmlCopyModal visible={htmlCopyVisible} onClose={() => setHtmlCopyVisible(false)} />
       <DicePhotoManagerModal
         visible={photoManagerVisible}
         onClose={() => setPhotoManagerVisible(false)}

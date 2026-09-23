@@ -97,7 +97,7 @@ export function DicePhotoManagerModal({ visible, onClose, onImageChanged }: Prop
         <View style={styles.header}>
           <View>
             <Text style={styles.title}>Fotos dos dados</Text>
-            <Text style={styles.subtitle}>Escolha uma das 21 combinações</Text>
+            <Text style={styles.subtitle}>Escolha uma das combinações</Text>
           </View>
           <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar fotos" hitSlop={12}>
             <Text style={styles.close}>×</Text>
@@ -115,16 +115,14 @@ export function DicePhotoManagerModal({ visible, onClose, onImageChanged }: Prop
                 accessibilityLabel={`Combinação ${imageName}`}
                 accessibilityState={{ selected: selected === imageName }}
               >
-                <Text style={[styles.combinationText, selected === imageName && styles.selectedCombinationText]}>{imageName}</Text>
+                <Text style={[styles.combinationText, selected === imageName && styles.selectedCombinationText]}>{imageName.toString()[0] + " - " + imageName.toString()[1]}</Text>
               </Pressable>
             ))}
           </View>
 
-          {selected === null ? (
-            <Text style={styles.emptyText}>Selecione uma combinação para visualizar e trocar sua foto.</Text>
-          ) : (
+          {selected !== null && (
             <View style={styles.selectedContent}>
-              <Text style={styles.selectedTitle}>Combinação {selected}</Text>
+              <Text style={styles.selectedTitle}>Combinação {selected.toString()[0] + " - " + selected.toString()[1]}</Text>
               <Image
                 key={`${selected}-${revision}`}
                 source={getDicePhotoSource(selected)}
