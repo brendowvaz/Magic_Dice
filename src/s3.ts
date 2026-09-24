@@ -1,10 +1,15 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { Asset } from 'expo-asset';
-import { File } from 'expo-file-system';
+import { File, Paths } from 'expo-file-system';
+import { copyAsync } from 'expo-file-system/legacy';
 import { Platform } from 'react-native';
 import { diceImages, type DiceImageName } from './diceImages';
 import { getDicePhotoOverrideUri } from './dicePhotoOverrides';
 import { loadS3Settings, S3_IMAGE_KEY } from './s3Settings';
+
+function hasUriScheme(uri: string): boolean {
+  return /^[a-z][a-z\d+.-]*:/i.test(uri);
+}
 
 async function imageBytes(imageName: DiceImageName): Promise<Uint8Array<ArrayBuffer>> {
   const overrideUri = getDicePhotoOverrideUri(imageName);
@@ -24,8 +29,15 @@ async function imageBytes(imageName: DiceImageName): Promise<Uint8Array<ArrayBuf
     return new Uint8Array(await response.arrayBuffer());
   }
 
-  if (!asset.localUri) throw new Error('A imagem selecionada não está disponível no aparelho.');
-  return new File(asset.localUri).bytes();
+  const assetUri = asset.localUri ?? asset.uri;
+  if (hasUriScheme(assetUri)) return new File(assetUri).bytes();
+
+  // Em APKs Android, imagens empacotadas podem ser resolvidas apenas pelo nome
+  // do recurso (sem file://). Copie o recurso para o cache antes de usar a API
+  // moderna de File, que exige uma URI absoluta.
+  const cachedAsset = new File(Paths.cache, `dice-upload-${imageName}.${asset.type || 'jpg'}`);
+  await copyAsync({ from: assetUri, to: cachedAsset.uri });
+  return cachedAsset.bytes();
 }
 
 export async function uploadDiceImage(imageName: DiceImageName): Promise<void> {
